@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comissão Financeira JOFAR - Controle de Patrocínios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f3f4f6;
+        }
+        .btn-mobile {
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
+        }
+        @media (max-width: 768px) {
+            .mobile-text { font-size: 16px; }
+            .mobile-padding { padding: 12px; }
+            .mobile-card { margin: 8px 4px; padding: 16px; border-radius: 12px; }
+            .mobile-button { 
+                min-height: 44px; 
+                padding: 12px 16px;
+                font-size: 16px;
+            }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body class="mobile-padding">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="bg-indigo-900 text-white rounded-lg shadow-lg mb-6 mobile-padding">
+            <div class="text-center py-6">
+                <h1 class="text-2xl font-bold mb-2">🎯 Comissão JOFAR</h1>
+                <p class="text-indigo-200">Controle de Patrocínios - Versão Mobile</p>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-white/10 p-4 rounded text-center">
+                    <div class="text-2xl font-bold" id="totalSponsors">0</div>
+                    <div class="text-sm text-indigo-200">Patrocinadores</div>
+                </div>
+                <div class="bg-white/10 p-4 rounded text-center">
+                    <div class="text-2xl font-bold" id="completionRate">0%</div>
+                    <div class="text-sm text-indigo-200">Progresso</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-white rounded-lg shadow p-4 mb-6">
+            <button onclick="addSponsor()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold mb-3 mobile-button btn-mobile">
+                ➕ Novo Patrocinador
+            </button>
+            <button onclick="exportCSV()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold mobile-button btn-mobile">
+                📊 Exportar CSV
+            </button>
+            <button onclick="resetData()" class="w-full bg-gray-500 text-white py-3 rounded-lg font-bold mobile-button btn-mobile">
+                🔄 Limpar Tudo
+            </button>
+        </div>
+
+        <!-- Sponsors List -->
+        <div id="sponsorsList" class="space-y-4">
+            <!-- Lista será preenchida por JavaScript -->
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <p class="mt-2 text-gray-600">Carregando...</p>
+        </div>
+
+        <!-- Status -->
+        <div id="status" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg hidden"></div>
+    </div>
+
+    <!-- Add Sponsor Modal -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mobile-card">
+            <div class="bg-indigo-900 text-white p-4 rounded-t-lg">
+                <h2 class="text-lg font-bold">Novo Patrocinador</h2>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-bold mb-2">Nome da Empresa</label>
+                    <input type="text" id="sponsorName" class="w-full border border-gray-300 p-3 rounded-lg mobile-text" placeholder="Digite o nome...">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-2">Pacote</label>
+                    <select id="sponsorPackage" class="w-full border border-gray-300 p-3 rounded-lg mobile-text">
+                        <option value="OURO">Ouro</option>
+                        <option value="PLATINA">Platina</option>
+                        <option value="DIAMANTE">Diamante</option>
+                        <option value="PREMIUM">Premium</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="closeModal()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg font-bold mobile-button btn-mobile">
+                        Cancelar
+                    </button>
+                    <button onclick="saveSponsor()" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-bold mobile-button btn-mobile">
+                        Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração dos pacotes
+        const PACKAGES = {
+            OURO: { 
+                label: 'Ouro', 
+                benefits: ['Logomarca no Banner Principal', 'Divulgação nos Stories'],
+                color: 'bg-yellow-100 text-yellow-800'
+            },
+            PLATINA: { 
+                label: 'Platina', 
+                benefits: ['Logomarca no Banner', 'Divulgação nos Stories', 'Espaço para Produtos'],
+                color: 'bg-slate-200 text-slate-800'
+            },
+            DIAMANTE: { 
+                label: 'Diamante', 
+                benefits: ['Logomarca no Banner', 'Stories', 'Espaço para Produtos', 'Post no Feed'],
+                color: 'bg-cyan-100 text-cyan-800'
+            },
+            PREMIUM: { 
+                label: 'Premium', 
+                benefits: ['Logomarca no Banner', 'Stories', 'Espaço para Produtos', 'Post no Feed', 'Logo no Crachá', 'Agradecimento'],
+                color: 'bg-purple-100 text-purple-800'
+            }
+        };
+
+        const DAYS = [1, 2, 3];
+        let sponsors = [];
+        
+        // Carregar dados ao iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+        });
+        
+        function loadData() {
+            const saved = localStorage.getItem('jofar_data');
+            if (saved) {
+                try {
+                    sponsors = JSON.parse(saved);
+                } catch (e) {
+                    sponsors = [];
+                }
+            }
+            document.getElementById('loading').classList.add('hidden');
+            renderSponsors();
+            updateStats();
+        }
+        
+        function saveData() {
+            localStorage.setItem('jofar_data', JSON.stringify(sponsors));
+            showStatus('Dados salvos!', false);
+        }
+        
+        function renderSponsors() {
+            const container = document.getElementById('sponsorsList');
+            container.innerHTML = '';
+            
+            if (sponsors.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-200 mobile-card">
+                        <div class="text-gray-300 mb-3 text-4xl">📊</div>
+                        <h3 class="text-lg font-medium text-gray-500">Nenhum patrocínio cadastrado</h3>
+                        <p class="text-gray-400 text-sm mt-1">Clique em "Novo Patrocinador" para começar</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            sponsors.forEach(sponsor => {
+                const pkg = PACKAGES[sponsor.packageId] || PACKAGES.OURO;
+                const completion = sponsor.dailyCompletion || {};
+                
+                const div = document.createElement('div');
+                div.className = 'bg-white rounded-lg shadow p-4 mobile-card animate-fade-in';
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full ${pkg.color} flex items-center justify-center font-bold text-lg">
+                                ${sponsor.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg">${sponsor.name}</h3>
+                                <span class="text-xs px-2 py-1 rounded-full ${pkg.color} border">${pkg.label}</span>
+                            </div>
+                        </div>
+                        <button onclick="deleteSponsor(${sponsor.id})" class="text-red-500 hover:text-red-700 btn-mobile" title="Excluir">🗑️</button>
+                    </div>
+                    <div class="space-y-3 mt-4">
+                        ${pkg.benefits.map((benefit, index) => {
+                            const benefitId = index + 1;
+                            const dayCompletion = completion[benefitId] || [false, false, false];
+                            const completedCount = dayCompletion.filter(d => d).length;
+                            
+                            return `
+                                <div class="border rounded-lg p-3">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-medium">${benefit}</span>
+                                        <span class="text-xs text-gray-500">${completedCount}/3 dias</span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        ${DAYS.map((day, dayIndex) => {
+                                            const isDone = dayCompletion[dayIndex];
+                                            return `
+                                                <button onclick="toggleBenefit(${sponsor.id}, ${benefitId}, ${dayIndex})" 
+                                                    class="w-10 h-10 rounded-full text-xs font-bold transition-all ${
+                                                        isDone ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+                                                    } btn-mobile">
+                                                    ${isDone ? '✓' : `D${day}`}
+                                                </button>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div class="mt-4">
+                        <textarea oninput="updateNotes(${sponsor.id}, this.value)" 
+                            placeholder="Observações..." 
+                            class="w-full border rounded-lg p-3 text-sm resize-none mobile-text"
+                            rows="2">${sponsor.notes || ''}</textarea>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        function updateStats() {
+            document.getElementById('totalSponsors').textContent = sponsors.length;
+            
+            let totalTasks = 0;
+            let completedTasks = 0;
+            
+            sponsors.forEach(sponsor => {
+                const pkg = PACKAGES[sponsor.packageId];
+                if (pkg) {
+                    totalTasks += pkg.benefits.length * DAYS.length;
+                    const completion = sponsor.dailyCompletion || {};
+                    Object.values(completion).forEach(days => {
+                        completedTasks += days.filter(d => d).length;
+                    });
+                }
+            });
+            
+            const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            document.getElementById('completionRate').textContent = completionRate + '%';
+        }
+        
+        function showStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white mobile-text ${
+                isError ? 'bg-red-500' : 'bg-green-500'
+            }`;
+            status.classList.remove('hidden');
+            setTimeout(() => status.classList.add('hidden'), 3000);
+        }
+        
+        function addSponsor() {
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('sponsorName').focus();
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+        
+        function saveSponsor() {
+            const name = document.getElementById('sponsorName').value.trim();
+            const packageId = document.getElementById('sponsorPackage').value;
+            
+            if (!name) {
+                showStatus('Digite o nome da empresa!', true);
+                return;
+            }
+            
+            const newSponsor = {
+                id: Date.now(),
+                name: name,
+                packageId: packageId,
+                dailyCompletion: {},
+                notes: ''
+            };
+            
+            sponsors.push(newSponsor);
+            saveData();
+            renderSponsors();
+            updateStats();
+            closeModal();
+            document.getElementById('sponsorName').value = '';
+            showStatus('Patrocinador adicionado com sucesso!');
+        }
+        
+        function deleteSponsor(id) {
+            if (confirm('Tem certeza que deseja excluir este patrocinador?')) {
+                sponsors = sponsors.filter(s => s.id !== id);
+                saveData();
+                renderSponsors();
+                updateStats();
+                showStatus('Patrocinador excluído!');
+            }
+        }
+        
+        function toggleBenefit(sponsorId, benefitId, dayIndex) {
+            const sponsor = sponsors.find(s => s.id === sponsorId);
+            if (!sponsor) return;
+            
+            if (!sponsor.dailyCompletion) sponsor.dailyCompletion = {};
+            if (!sponsor.dailyCompletion[benefitId]) sponsor.dailyCompletion[benefitId] = [false, false, false];
+            
+            sponsor.dailyCompletion[benefitId][dayIndex] = !sponsor.dailyCompletion[benefitId][dayIndex];
+            saveData();
+            renderSponsors();
+            updateStats();
+        }
+        
+        function updateNotes(sponsorId, text) {
+            const sponsor = sponsors.find(s => s.id === sponsorId);
+            if (sponsor) {
+                sponsor.notes = text;
+                saveData();
+            }
+        }
+        
+        function resetData() {
+            if (confirm('Isso apagará TODOS os patrocinadores. Continuar?')) {
+                sponsors = [];
+                saveData();
+                renderSponsors();
+                updateStats();
+                showStatus('Todos os dados foram limpos!');
+            }
+        }
+        
+        function exportCSV() {
+            if (sponsors.length === 0) {
+                showStatus('Nenhum dado para exportar!', true);
+                return;
+            }
+            
+            let csv = 'Patrocinador;Pacote;Status;Observações\n';
+            
+            sponsors.forEach(sponsor => {
+                const pkg = PACKAGES[sponsor.packageId] || PACKAGES.OURO;
+                const completion = sponsor.dailyCompletion || {};
+                
+                let totalTasks = pkg.benefits.length * DAYS.length;
+                let completedTasks = 0;
+                Object.values(completion).forEach(days => {
+                    completedTasks += days.filter(d => d).length;
+                });
+                
+                const status = completedTasks === totalTasks ? 'COMPLETO' : 
+                              completedTasks > 0 ? 'EM ANDAMENTO' : 'PENDENTE';
+                
+                csv += `"${sponsor.name}";"${pkg.label}";"${status}";"${sponsor.notes || ''}"\n`;
+            });
+            
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `jofar_patrocinios_${new Date().toLocaleDateString('pt-BR')}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showStatus('CSV exportado com sucesso!');
+        }
+    </script>
+</body>
+</html>
